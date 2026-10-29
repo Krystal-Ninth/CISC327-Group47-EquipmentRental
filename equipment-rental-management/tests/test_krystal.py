@@ -172,3 +172,68 @@ def test_availability_changes_after_checkout_and_return(client):
     assert availability.status_code == 200
     assert availability.get_json()["available_units"] == 1
     assert availability.get_json()["total_units"] == 1
+
+
+#check out of service equipment cannot be rent
+def test_cannot_rent_out_of_service_equipment(client):
+    item = client.post("/equipment", json={
+        "name": "Kayak",
+        "category": "Water",
+        "total_units": 1
+    }).get_json()
+
+    renter = client.post("/renters", json={
+        "name": "RenterA",
+        "email": "rentera@example.com"
+    }).get_json()
+
+    status = client.patch(f"/equipment/{item['id']}/status", json={
+        "is_available": False
+    })
+    assert status.status_code == 200
+
+    response = client.post("/rentals", json={
+        "equipment_id": item["id"],
+        "renter_id": renter["id"]
+    })
+
+    assert response.status_code == 400
+
+    availability = client.get(
+        f"/equipment/{item['id']}/availability"
+    ).get_json()
+    assert availability["available_units"] == 1
+    assert client.get("/rentals").get_json() == []
+
+
+#check equipment cannot be rented when no units are left
+def test_cannot_rent_when_stock_is_empty(client):
+    item = client.post("/equipment", json={
+        "name": "Tent",
+        "category": "Camping",
+        "total_units": 1
+    }).get_json()
+
+    renter = client.post("/renters", json={
+        "name": "RenterA",
+        "email": "rentera@example.com"
+    }).get_json()
+
+    first = client.post("/rentals", json={
+        "equipment_id": item["id"],
+        "renter_id": renter["id"]
+    })
+    assert first.status_code == 201
+
+    second = client.post("/rentals", json={
+        "equipment_id": item["id"],
+        "renter_id": renter["id"]
+    })
+
+    assert second.status_code == 400
+
+    availability = client.get(
+        f"/equipment/{item['id']}/availability"
+    ).get_json()
+    assert availability["available_units"] == 0
+    assert len(client.get("/rentals").get_json()) == 1
