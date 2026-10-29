@@ -1,3 +1,5 @@
+from datetime import date, timedelta
+
 #check new equipment is saved
 def test_add_equipment(client):
     response = client.post("/equipment", json={
@@ -237,3 +239,89 @@ def test_cannot_rent_when_stock_is_empty(client):
     ).get_json()
     assert availability["available_units"] == 0
     assert len(client.get("/rentals").get_json()) == 1
+
+
+#check rental can be extended by one or two days
+def test_extend_rental_due_date(client):
+    item = client.post("/equipment", json={
+        "name": "Tent",
+        "category": "Camping",
+        "total_units": 1
+    }).get_json()
+
+    renter = client.post("/renters", json={
+        "name": "RenterA",
+        "email": "rentera@example.com"
+    }).get_json()
+
+    checkout = client.post("/rentals", json={
+        "equipment_id": item["id"],
+        "renter_id": renter["id"]
+    })
+    assert checkout.status_code == 201
+    rental = checkout.get_json()
+    original_due = date.fromisoformat(rental["due_date"])
+
+    response = client.put(f"/rentals/{rental['id']}/extend", json={
+        "days": 1
+    })
+
+    assert response.status_code == 200
+    expected_due = original_due + timedelta(days=1)
+    assert response.get_json()["due_date"] == expected_due.isoformat()
+
+    response = client.put(f"/rentals/{rental['id']}/extend", json={
+        "days": 2
+    })
+
+    assert response.status_code == 200
+    expected_due = expected_due + timedelta(days=2)
+    assert response.get_json()["due_date"] == expected_due.isoformat()
+
+    saved = client.get("/rentals").get_json()
+    assert len(saved) == 1
+    assert saved[0]["due_date"] == expected_due.isoformat()
+
+
+#check unknown rental cannot be extended
+def test_extend_unknown_rental_returns_404(client):
+    response = client.put("/rentals/999/extend", json={
+        "days": 1
+    })
+
+    assert response.status_code == 404
+    assert response.get_json()["error"] == "Rental not found"
+
+
+#check returned rental cannot be extended
+def test_cannot_extend_returned_rental(client):
+    item = client.post("/equipment", json={
+        "name": "Kayak",
+        "category": "Water",
+        "total_units": 1
+    }).get_json()
+
+    renter = client.post("/renters", json={
+        "name": "RenterA",
+        "email": "rentera@example.com"
+    }).get_json()
+
+    checkout = client.post("/rentals", json={
+        "equipment_id": item["id"],
+        "renter_id": renter["id"]
+    })
+    assert checkout.status_code == 201
+    rental = checkout.get_json()
+
+    returned = client.put(f"/rentals/{rental['id']}/return")
+    assert returned.status_code == 200
+
+    response = client.put(f"/rentals/{rental['id']}/extend", json={
+        "days": 1
+    })
+
+    assert response.status_code == 400
+    assert response.get_json()["error"] == "Rental already returned"
+
+    saved = client.get("/rentals").get_json()
+    assert saved[0]["due_date"] == rental["due_date"]
