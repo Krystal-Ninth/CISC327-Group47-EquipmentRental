@@ -84,3 +84,91 @@ def test_delete_equipment_removes_item(client):
     assert response.status_code == 204
     assert client.get(f"/equipment/{item['id']}").status_code == 404
     assert client.get("/equipment").get_json() == []
+
+
+#check equipment status changes saved
+def test_change_equipment_status(client):
+    item = client.post("/equipment", json={
+        "name": "Kayak",
+        "category": "Water",
+        "total_units": 1
+    }).get_json()
+
+    response = client.patch(f"/equipment/{item['id']}/status", json={
+        "is_available": False
+    })
+
+    assert response.status_code == 200
+    saved = client.get(f"/equipment/{item['id']}").get_json()
+    assert saved["is_available"] is False
+
+    response = client.patch(f"/equipment/{item['id']}/status", json={
+        "is_available": True
+    })
+
+    assert response.status_code == 200
+    saved = client.get(f"/equipment/{item['id']}").get_json()
+    assert saved["is_available"] is True
+
+
+#check changing the status of an unknown item return 404
+def test_change_unknown_equipment_status_returns_404(client):
+    response = client.patch("/equipment/999/status", json={
+        "is_available": False
+    })
+
+    assert response.status_code == 404
+    assert response.get_json()["error"] == "Equipment not found"
+
+
+#check availability for an unknown item return 404
+def test_unknown_equipment_availability_returns_404(client):
+    response = client.get("/equipment/999/availability")
+
+    assert response.status_code == 404
+    assert response.get_json()["error"] == "Equipment not found"
+
+
+#check checkout reduces stock and return restores it
+def test_availability_changes_after_checkout_and_return(client):
+    item = client.post("/equipment", json={
+        "name": "Tent",
+        "category": "Camping",
+        "total_units": 1
+    }).get_json()
+
+    renter = client.post("/renters", json={
+        "name": "RenterA",
+        "email": "rentera@example.com"
+    }).get_json()
+
+    availability = client.get(
+        f"/equipment/{item['id']}/availability"
+    )
+    assert availability.status_code == 200
+    assert availability.get_json()["available_units"] == 1
+    assert availability.get_json()["total_units"] == 1
+
+    checkout = client.post("/rentals", json={
+        "equipment_id": item["id"],
+        "renter_id": renter["id"]
+    })
+
+    assert checkout.status_code == 201
+    rental = checkout.get_json()
+
+    availability = client.get(
+        f"/equipment/{item['id']}/availability"
+    )
+    assert availability.status_code == 200
+    assert availability.get_json()["available_units"] == 0
+
+    returned = client.put(f"/rentals/{rental['id']}/return")
+    assert returned.status_code == 200
+
+    availability = client.get(
+        f"/equipment/{item['id']}/availability"
+    )
+    assert availability.status_code == 200
+    assert availability.get_json()["available_units"] == 1
+    assert availability.get_json()["total_units"] == 1
