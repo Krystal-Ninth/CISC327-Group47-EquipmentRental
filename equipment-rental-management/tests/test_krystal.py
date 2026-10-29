@@ -325,3 +325,77 @@ def test_cannot_extend_returned_rental(client):
 
     saved = client.get("/rentals").get_json()
     assert saved[0]["due_date"] == rental["due_date"]
+
+
+#check deposit cannot be released before return
+def test_cannot_release_deposit_before_return(client):
+    item = client.post("/equipment", json={
+        "name": "Kayak",
+        "category": "Water",
+        "total_units": 1
+    }).get_json()
+
+    renter = client.post("/renters", json={
+        "name": "RenterA",
+        "email": "rentera@example.com"
+    }).get_json()
+
+    checkout = client.post("/rentals", json={
+        "equipment_id": item["id"],
+        "renter_id": renter["id"],
+        "deposit_amount": 50
+    })
+    assert checkout.status_code == 201
+    rental = checkout.get_json()
+    response = client.put(
+        f"/rentals/{rental['id']}/deposit/release"
+    )
+
+    assert response.status_code == 400
+    assert response.get_json()["error"] == "Equipment has not been returned yet"
+    saved = client.get("/rentals").get_json()
+    assert saved[0]["deposit_released"] is False
+
+
+#check unknown rental returns 404 when releasing a deposit
+def test_release_unknown_rental_deposit_returns_404(client):
+    response = client.put("/rentals/999/deposit/release")
+    assert response.status_code == 404
+    assert response.get_json()["error"] == "Rental not found"
+
+
+#check that releasing a deposit saves the updated state
+def test_release_deposit_is_saved(client):
+    item = client.post("/equipment", json={
+        "name": "Tent",
+        "category": "Camping",
+        "total_units": 1
+    }).get_json()
+
+    renter = client.post("/renters", json={
+        "name": "RenterA",
+        "email": "rentera@example.com"
+    }).get_json()
+
+    checkout = client.post("/rentals", json={
+        "equipment_id": item["id"],
+        "renter_id": renter["id"],
+        "deposit_amount": 50
+    })
+    assert checkout.status_code == 201
+    rental = checkout.get_json()
+    assert rental["deposit_amount"] == 50
+    assert rental["deposit_released"] is False
+    returned = client.put(f"/rentals/{rental['id']}/return")
+    assert returned.status_code == 200
+
+    response = client.put(
+        f"/rentals/{rental['id']}/deposit/release"
+    )
+
+    assert response.status_code == 200
+    assert response.get_json()["rental_id"] == rental["id"]
+    assert response.get_json()["deposit_released"] is True
+    saved = client.get("/rentals").get_json()
+    assert saved[0]["id"] == rental["id"]
+    assert saved[0]["deposit_released"] is True
