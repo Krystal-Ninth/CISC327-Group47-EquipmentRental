@@ -1,4 +1,5 @@
 from datetime import date, timedelta
+from app import store
 
 #check new equipment is saved
 def test_add_equipment(client):
@@ -474,3 +475,97 @@ def test_current_rentals_report_is_empty_after_return(client):
     assert after.status_code == 200
     assert after.get_json() == []
     assert len(client.get("/rentals").get_json()) == 1
+
+
+#check an empty store gives an empty overdue report
+def test_overdue_report_is_empty(client):
+    response = client.get("/reports/overdue-rentals")
+
+    assert response.status_code == 200
+    assert response.get_json() == []
+
+
+#check only unreturned rentals before today are included
+def test_overdue_report_filters_rentals(client):
+    item = client.post("/equipment", json={
+        "name": "Tent",
+        "category": "Camping",
+        "total_units": 4
+    }).get_json()
+
+    renter = client.post("/renters", json={
+        "name": "RenterA",
+        "email": "rentera@example.com"
+    }).get_json()
+
+    rental_ids = []
+    for days in [-1, 0, 1, -2]:
+        response = client.post("/rentals", json={
+            "equipment_id": item["id"],
+            "renter_id": renter["id"]
+        })
+        assert response.status_code == 201
+
+        rental_id = response.get_json()["id"]
+        store.rentals[rental_id].due_date = (
+            date.today() + timedelta(days=days)
+        )
+        rental_ids.append(rental_id)
+
+    returned = client.put(f"/rentals/{rental_ids[3]}/return")
+    assert returned.status_code == 200
+
+    before = client.get("/rentals").get_json()
+    response = client.get("/reports/overdue-rentals")
+
+    assert response.status_code == 200
+    assert response.get_json() == [
+        store.rentals[rental_ids[0]].to_dict()
+    ]
+
+    #check making the report does not change rental records
+    assert client.get("/rentals").get_json() == before
+
+
+#check an overdue rental leaves the report after return
+def test_overdue_report_excludes_rental_after_return(client):
+    item = client.post("/equipment", json={
+        "name": "Kayak",
+        "category": "Water",
+        "total_units": 1
+    }).get_json()
+
+    renter = client.post("/renters", json={
+        "name": "RenterA",
+        "email": "rentera@example.com"
+    }).get_json()
+
+    checkout = client.post("/rentals", json={
+        "equipment_id": item["id"],
+        "renter_id": renter["id"]
+    })
+    assert checkout.status_code == 201
+    rental_id = checkout.get_json()["id"]
+
+    store.rentals[rental_id].due_date = (
+        date.today() - timedelta(days=1)
+    )
+
+    before = client.get("/reports/overdue-rentals")
+    assert before.status_code == 200
+    assert before.get_json() == [
+        store.rentals[rental_id].to_dict()
+    ]
+
+    returned = client.put(f"/rentals/{rental_id}/return")
+    assert returned.status_code == 200
+
+    after = client.get("/reports/overdue-rentals")
+    assert after.status_code == 200
+    assert after.get_json() == []
+
+    #check the returned rental stays in the history
+    saved = client.get("/rentals").get_json()
+    assert len(saved) == 1
+    assert saved[0]["id"] == rental_id
+    assert saved[0]["return_date"] == date.today().isoformat()
