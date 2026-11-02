@@ -232,12 +232,14 @@ def test_cannot_rent_when_stock_is_empty(client):
         "renter_id": renter["id"]
     })
 
-    assert second.status_code == 400
-
     availability = client.get(
         f"/equipment/{item['id']}/availability"
-    ).get_json()
-    assert availability["available_units"] == 0
+    )
+    assert availability.status_code == 200
+
+    #check stock stays at zero
+    assert availability.get_json()["available_units"] == 0
+    assert second.status_code == 400
     assert len(client.get("/rentals").get_json()) == 1
 
 
