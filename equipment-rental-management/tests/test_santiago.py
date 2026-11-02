@@ -86,6 +86,7 @@ def test_view_renter_list(client):
     assert response2.status_code == 201
     renter1 = response1.get_json()
     renter2 = response2.get_json()
+    
 
     response_list = client.get("/renters")
     assert response_list.status_code == 200
@@ -96,9 +97,24 @@ def test_view_renter_list(client):
     assert renter1 in renters_list
     assert renter2 in renters_list
 
-#Adds equipment then rentals then creates a list of them and verifies all the rentals are in the list
+#Adds renter, equipment then rentals then creates a list of them and verifies all the rentals are in the list
 def test_view_all_rentals(client):
     due_date_str = (date.today() + timedelta(days=7)).isoformat()
+
+    renter_response1 = client.post("/renters", json={
+                    "name": "RenterA",
+                    "email": "rentera@example.com"
+                })
+    renter_response2 = client.post("/renters", json={
+                    "name": "RenterB",
+                    "email": "renterB@example.com"
+                })
+    assert renter_response1.status_code == 201
+    assert renter_response2.status_code == 201
+    renter1 = renter_response1.get_json()
+    renter2 = renter_response2.get_json()
+    renter_ID1 = renter1["id"]
+    renter_ID2 = renter2["id"]
 
     first = client.post("/equipment", json={
         "name": "Kayak",
@@ -110,16 +126,23 @@ def test_view_all_rentals(client):
         "category": "Camping",
         "total_units": 2
     })
+    assert first.status_code == 201
+    assert second.status_code == 201
+    equipment1 = first.get_json()
+    equipment2 = second.get_json()
+    equipment_ID1 = equipment1["id"]
+    equipment_ID2 = equipment2["id"]
+
 
     response1 = client.post("/rentals", json={
-            "equipment_id": 1,
-            "renter_id": 1,
+            "equipment_id": equipment_ID1,
+            "renter_id": renter_ID2,
             "due_date": due_date_str,
             "deposit_amount": 50.0
             })
     response2 = client.post("/rentals", json={
-            "equipment_id": 2,
-            "renter_id": 2,
+            "equipment_id": equipment_ID2,
+            "renter_id": renter_ID1,
             "due_date": due_date_str,
             "deposit_amount": 75.0
             })
@@ -137,9 +160,23 @@ def test_view_all_rentals(client):
     assert rental1 in rentals_list
     assert rental2 in rentals_list    
 
-#Adds equipment then rentals then searches for a rental based on renter
+#Adds renter, equipment then rentals then searches for a rental based on renter
 def test_filter_rental_records_renter(client):
     due_date_str = (date.today() + timedelta(days=7)).isoformat()
+    renter_response1 = client.post("/renters", json={
+                    "name": "RenterA",
+                    "email": "rentera@example.com"
+                })
+    renter_response2 = client.post("/renters", json={
+                    "name": "RenterB",
+                    "email": "renterB@example.com"
+                })
+    assert renter_response1.status_code == 201
+    assert renter_response2.status_code == 201
+    renter1 = renter_response1.get_json()
+    renter2 = renter_response2.get_json()
+    renter_ID1 = renter1["id"]
+    renter_ID2 = renter2["id"]
 
     first = client.post("/equipment", json={
         "name": "Kayak",
@@ -151,16 +188,23 @@ def test_filter_rental_records_renter(client):
         "category": "Camping",
         "total_units": 2
     })
+    assert first.status_code == 201
+    assert second.status_code == 201
+    equipment1 = first.get_json()
+    equipment2 = second.get_json()
+    equipment_ID1 = equipment1["id"]
+    equipment_ID2 = equipment2["id"]
+
 
     response1 = client.post("/rentals", json={
-            "equipment_id": 1,
-            "renter_id": 1,
+            "equipment_id": equipment_ID1,
+            "renter_id": renter_ID2,
             "due_date": due_date_str,
             "deposit_amount": 50.0
             })
     response2 = client.post("/rentals", json={
-            "equipment_id": 2,
-            "renter_id": 2,
+            "equipment_id": equipment_ID2,
+            "renter_id": renter_ID1,
             "due_date": due_date_str,
             "deposit_amount": 75.0
             })
@@ -168,16 +212,30 @@ def test_filter_rental_records_renter(client):
     assert response2.status_code == 201
     rental1 = response1.get_json()
 
-    response_list = client.get("/rentals?renter_id=1")
+    response_list = client.get(f"/rentals?renter_id={renter_ID2}")
     assert response_list.status_code == 200
     rentals_list = response_list.get_json()
 
     assert len(rentals_list) == 1
     assert rental1 in rentals_list   
 
-#Adds equipment then rentals then searches for a rental based on equipment ID
+#Adds renter, equipment then rentals then searches for a rental based on equipment ID
 def test_filter_rental_records_ID(client):
     due_date_str = (date.today() + timedelta(days=7)).isoformat()
+    renter_response1 = client.post("/renters", json={
+                    "name": "RenterA",
+                    "email": "rentera@example.com"
+                })
+    renter_response2 = client.post("/renters", json={
+                    "name": "RenterB",
+                    "email": "renterB@example.com"
+                })
+    assert renter_response1.status_code == 201
+    assert renter_response2.status_code == 201
+    renter1 = renter_response1.get_json()
+    renter2 = renter_response2.get_json()
+    renter_ID1 = renter1["id"]
+    renter_ID2 = renter2["id"]
 
     first = client.post("/equipment", json={
         "name": "Kayak",
@@ -189,16 +247,23 @@ def test_filter_rental_records_ID(client):
         "category": "Camping",
         "total_units": 2
     })
+    assert first.status_code == 201
+    assert second.status_code == 201
+    equipment1 = first.get_json()
+    equipment2 = second.get_json()
+    equipment_ID1 = equipment1["id"]
+    equipment_ID2 = equipment2["id"]
+
 
     response1 = client.post("/rentals", json={
-            "equipment_id": 1,
-            "renter_id": 1,
+            "equipment_id": equipment_ID1,
+            "renter_id": renter_ID2,
             "due_date": due_date_str,
             "deposit_amount": 50.0
             })
     response2 = client.post("/rentals", json={
-            "equipment_id": 2,
-            "renter_id": 2,
+            "equipment_id": equipment_ID2,
+            "renter_id": renter_ID1,
             "due_date": due_date_str,
             "deposit_amount": 75.0
             })
@@ -206,17 +271,23 @@ def test_filter_rental_records_ID(client):
     assert response2.status_code == 201
     rental1 = response1.get_json()
 
-    response_list = client.get("/rentals?equipment_id=1")
+    response_list = client.get(f"/rentals?equipment_id={equipment_ID1}")
     assert response_list.status_code == 200
     rentals_list = response_list.get_json()
 
     assert len(rentals_list) == 1
     assert rental1 in rentals_list   
 
-#Adds equipment then rental then checks out equipment and verifies its done correctly
+#Adds renter, equipment then rental then checks out equipment and verifies its done correctly
 def test_check_out_equipment(client):
     due_date_str = (date.today() + timedelta(days=7)).isoformat()
-
+    renter_response1 = client.post("/renters", json={
+                    "name": "RenterA",
+                    "email": "rentera@example.com"
+                })
+    assert renter_response1.status_code == 201
+    renter1 = renter_response1.get_json()
+    renter_ID1 = renter1["id"]
     first = client.post("/equipment", json={
             "name": "Kayak",
             "category": "Water",
@@ -229,7 +300,7 @@ def test_check_out_equipment(client):
 
     response1 = client.post("/rentals", json={
                 "equipment_id": equipment_ID,
-                "renter_id": 1,
+                "renter_id": renter_ID1,
                 "due_date": due_date_str,
                 "deposit_amount": 50.0
                 })
@@ -246,9 +317,17 @@ def test_check_out_equipment(client):
     assert availability["total_units"] == 5
     assert availability["available_units"] == 4
 
-#Adds equipment then rental then returns equipment and verifies its done correctly
+#Adds renter, equipment then rental then returns equipment and verifies its done correctly
 def test_return_equipment(client):
     due_date_str = (date.today() + timedelta(days=7)).isoformat()
+    renter_response1 = client.post("/renters", json={
+                    "name": "RenterA",
+                    "email": "rentera@example.com"
+                })
+    assert renter_response1.status_code == 201
+    renter1 = renter_response1.get_json()
+    renter_ID1 = renter1["id"]   
+
     first = client.post("/equipment", json={
             "name": "Kayak",
             "category": "Water",
@@ -261,7 +340,7 @@ def test_return_equipment(client):
 
     response1 = client.post("/rentals", json={
                 "equipment_id": equipment_ID,
-                "renter_id": 1,
+                "renter_id": renter_ID1,
                 "due_date": due_date_str,
                 "deposit_amount": 50.0
                 })
@@ -281,5 +360,3 @@ def test_return_equipment(client):
 
     post_return_availability = client.get(f"/equipment/{equipment_ID}/availability").get_json()
     assert post_return_availability["available_units"] == 1
-
-    
