@@ -401,3 +401,76 @@ def test_release_deposit_is_saved(client):
     saved = client.get("/rentals").get_json()
     assert saved[0]["id"] == rental["id"]
     assert saved[0]["deposit_released"] is True
+
+
+#enhancement test
+#check a empty store gives a empty report
+def test_current_rentals_report_is_empty(client):
+    response = client.get("/reports/current-rentals")
+    assert response.status_code == 200
+    assert response.get_json() == []
+
+
+#check report excludes returned rentals
+def test_current_rentals_report_excludes_returned_rentals(client):
+    item = client.post("/equipment", json={
+        "name": "Tent",
+        "category": "Camping",
+        "total_units": 2
+    }).get_json()
+
+    renter = client.post("/renters", json={
+        "name": "RenterA",
+        "email": "rentera@example.com"
+    }).get_json()
+    first = client.post("/rentals", json={
+        "equipment_id": item["id"],
+        "renter_id": renter["id"]
+    })
+    assert first.status_code == 201
+    active = first.get_json()
+    second = client.post("/rentals", json={
+        "equipment_id": item["id"],
+        "renter_id": renter["id"]
+    })
+    assert second.status_code == 201
+    returned_id = second.get_json()["id"]
+    returned = client.put(f"/rentals/{returned_id}/return")
+    assert returned.status_code == 200
+    response = client.get("/reports/current-rentals")
+    assert response.status_code == 200
+    assert response.get_json() == [active]
+
+    saved = client.get("/rentals").get_json()
+    assert len(saved) == 2
+    assert active in saved
+    assert returned.get_json() in saved
+
+
+#check return the last rental make the report empty
+def test_current_rentals_report_is_empty_after_return(client):
+    item = client.post("/equipment", json={
+        "name": "Kayak",
+        "category": "Water",
+        "total_units": 1
+    }).get_json()
+    renter = client.post("/renters", json={
+        "name": "RenterA",
+        "email": "rentera@example.com"
+    }).get_json()
+    checkout = client.post("/rentals", json={
+        "equipment_id": item["id"],
+        "renter_id": renter["id"]
+    })
+    assert checkout.status_code == 201
+    rental = checkout.get_json()
+
+    before = client.get("/reports/current-rentals")
+    assert before.status_code == 200
+    assert before.get_json() == [rental]
+    returned = client.put(f"/rentals/{rental['id']}/return")
+    assert returned.status_code == 200
+    after = client.get("/reports/current-rentals")
+    assert after.status_code == 200
+    assert after.get_json() == []
+    assert len(client.get("/rentals").get_json()) == 1
