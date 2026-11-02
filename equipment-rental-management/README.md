@@ -56,8 +56,10 @@ app working without a REST client, and calls the same in-memory store.
 | PUT | `/rentals/<id>/return` | Return rented equipment |
 | GET | `/rentals?renter_id=&equipment_id=` | Look up rentals |
 | GET | `/reports/current-rentals` | List all unreturned rentals, including overdue rentals |
+| GET | `/reports/overdue-rentals` | List unreturned rentals whose due date is before today |
 
 The current-rentals report excludes returned rentals and returns an empty list when no rentals are active.
+The overdue-rentals report excludes returned rentals and rentals due today or later. It returns an empty list when no rentals are overdue. Overdue status is checked by date because the current model does not store a due time.
 
 ## Tests
 
