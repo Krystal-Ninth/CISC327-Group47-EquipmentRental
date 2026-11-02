@@ -360,3 +360,39 @@ def test_return_equipment(client):
 
     post_return_availability = client.get(f"/equipment/{equipment_ID}/availability").get_json()
     assert post_return_availability["available_units"] == 1
+
+
+#_____________STEP3_TEST___________
+#Verifies that out-of-service items cannot be rented.
+def test_enhancement_checkout_blocks_out_of_service(client):
+    item = client.post("/equipment", json={
+        "name": "Defect Boat", 
+        "category": "Water", 
+        "total_units": 1
+    }).get_json()
+    
+    client.patch(f"/equipment/{item['id']}/status", json={"is_available": False})
+
+    response = client.post("/rentals", json={"equipment_id": item["id"], "renter_id": 100})
+    
+    assert response.status_code == 400
+    assert response.get_json()["error"] == "Equipment is out of service"
+
+#Verifies that items with zero available stock cannot be double-booked.
+def test_enhancement_checkout_blocks_negative_stock(client):
+    
+    item = client.post("/equipment", json={
+        "name": "Defect Boat", 
+        "category": "Water", 
+        "total_units": 1
+    }).get_json()
+
+    client.post("/rentals", json={"equipment_id": item["id"], "renter_id": 100})
+
+    second_checkout = client.post("/rentals", json={"equipment_id": item["id"], "renter_id": 200})
+    
+    assert second_checkout.status_code == 400
+    assert second_checkout.get_json()["error"] == "Equipment is out of stock / completely checked out"
+    
+    availability = client.get(f"/equipment/{item['id']}/availability").get_json()
+    assert availability["available_units"] == 0
