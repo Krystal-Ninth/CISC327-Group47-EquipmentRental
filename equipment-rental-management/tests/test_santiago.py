@@ -213,6 +213,7 @@ def test_filter_rental_records_ID(client):
     assert len(rentals_list) == 1
     assert rental1 in rentals_list   
 
+#Adds equipment then rental then checks out equipment and verifies its done correctly
 def test_check_out_equipment(client):
     due_date_str = (date.today() + timedelta(days=7)).isoformat()
 
@@ -245,6 +246,7 @@ def test_check_out_equipment(client):
     assert availability["total_units"] == 5
     assert availability["available_units"] == 4
 
+#Adds equipment then rental then returns equipment and verifies its done correctly
 def test_return_equipment(client):
     due_date_str = (date.today() + timedelta(days=7)).isoformat()
     first = client.post("/equipment", json={
