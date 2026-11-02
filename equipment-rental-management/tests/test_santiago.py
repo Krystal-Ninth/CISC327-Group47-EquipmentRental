@@ -1,4 +1,5 @@
 from datetime import date, timedelta
+#Adds a renter and makes sure it made it properly
 def test_add_renter(client):
     response = client.post("/renters", json={
         "name": "RenterA",
@@ -12,6 +13,7 @@ def test_add_renter(client):
     assert renter["email"] == "rentera@example.com"
     assert renter["membership_date"] == date.today().isoformat()
 
+#Adds a renter then searches for it
 def test_view_renter_ID(client):
     response = client.post("/renters", json={
         "name": "RenterA",
@@ -29,6 +31,7 @@ def test_view_renter_ID(client):
     assert saved.status_code == 200
     assert saved.get_json() == renter    
 
+#Adds a renter then deletes it and verifies its done correctly
 def test_delete_renter(client):
     response = client.post("/renters", json={
             "name": "RenterA",
@@ -43,6 +46,7 @@ def test_delete_renter(client):
     verify_response = client.get(f"/renters/{renter_ID}")
     assert verify_response.status_code == 404
 
+#Adds a renter then updates it and verifies its done correctly 
 def test_update_renter(client):
     response = client.post("/renters", json={
                 "name": "RenterA",
@@ -68,6 +72,7 @@ def test_update_renter(client):
     assert saved.status_code == 200
     assert saved.get_json() == updated_renter 
 
+#Adds multiple renters then creates a list of them and verifies all the renters are in the list
 def test_view_renter_list(client):
     response1 = client.post("/renters", json={
                 "name": "RenterA",
@@ -91,6 +96,7 @@ def test_view_renter_list(client):
     assert renter1 in renters_list
     assert renter2 in renters_list
 
+#Adds equipment then rentals then creates a list of them and verifies all the rentals are in the list
 def test_view_all_rentals(client):
     due_date_str = (date.today() + timedelta(days=7)).isoformat()
 
@@ -131,6 +137,7 @@ def test_view_all_rentals(client):
     assert rental1 in rentals_list
     assert rental2 in rentals_list    
 
+#Adds equipment then rentals then searches for a rental based on renter
 def test_filter_rental_records_renter(client):
     due_date_str = (date.today() + timedelta(days=7)).isoformat()
 
@@ -168,6 +175,7 @@ def test_filter_rental_records_renter(client):
     assert len(rentals_list) == 1
     assert rental1 in rentals_list   
 
+#Adds equipment then rentals then searches for a rental based on equipment ID
 def test_filter_rental_records_ID(client):
     due_date_str = (date.today() + timedelta(days=7)).isoformat()
 
