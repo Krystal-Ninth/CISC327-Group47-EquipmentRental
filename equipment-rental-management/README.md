@@ -53,13 +53,17 @@ app working without a REST client, and calls the same in-memory store.
 | PUT | `/renters/<id>` | Update a renter |
 | DELETE | `/renters/<id>` | Delete a renter |
 | POST | `/rentals` | Check out equipment (`equipment_id`, `renter_id`) Returns 400 if item is out-of-service or lacks available units.|
-| PUT | `/rentals/<id>/return` | Return rented equipment |
+| PUT | `/rentals/<id>/return` | Return rented equipment and attempt a simulated confirmation to the renter |
 | GET | `/rentals?renter_id=&equipment_id=` | Look up rentals |
 | GET | `/reports/current-rentals` | List all unreturned rentals, including overdue rentals |
 | GET | `/reports/overdue-rentals` | List unreturned rentals whose due date is before today |
 
 The current-rentals report excludes returned rentals and returns an empty list when no rentals are active.
 The overdue-rentals report excludes returned rentals and rentals due today or later. It returns an empty list when no rentals are overdue. Overdue status is checked by date because the current model does not store a due time.
+
+After a successful API return, `X-Return-Notification` is `sent` if the
+simulator recorded the confirmation, or `not-sent` if it failed or there was
+no renter record. The return remains successful in either case.
 
 ## Tests
 

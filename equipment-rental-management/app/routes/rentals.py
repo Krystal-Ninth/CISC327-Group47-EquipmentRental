@@ -4,6 +4,7 @@ from flask import Blueprint, jsonify, request
 
 from app import store
 from app.models.rental import Rental
+from notification_service import RETURN_CONFIRMATION_SUBJECT, send_notification
 
 rentals_bp = Blueprint("rentals", __name__, url_prefix="/rentals")
 
@@ -60,7 +61,17 @@ def return_equipment(rental_id):
     if item is not None:
         item.available_units += 1
 
-    return jsonify(rental.to_dict())
+    response = jsonify(rental.to_dict())
+    renter = store.renters.get(rental.renter_id)
+    sent = False
+    if renter is not None:
+        sent = send_notification(
+            renter.email,
+            RETURN_CONFIRMATION_SUBJECT,
+            f"Your return for rental #{rental.id} was recorded.",
+        )
+    response.headers["X-Return-Notification"] = "sent" if sent else "not-sent"
+    return response
 
 
 @rentals_bp.route("/<int:rental_id>/extend", methods=["PUT"])
